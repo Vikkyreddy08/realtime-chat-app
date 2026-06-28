@@ -6,34 +6,38 @@ A full-stack real-time chat application built with React, Django, Django Channel
 ## Features
 
 - **Real-time messaging** with WebSockets
-- **User authentication** with JWT
-- **One-to-one chat** and **group chat**
-- **Typing indicators**
-- **Read receipts**
-- **File attachments** (images, PDFs, docs)
-- **Emoji picker**
-- **Dark/Light mode**
-- **Responsive design** (mobile-friendly)
-- **Online/offline status**
+- **User authentication** with JWT (Login/Register)
+- **One-to-one chat** and **group chat** creation
+- **Typing indicators** with animated bouncing dots
+- **Read receipts** with blue double checkmarks
+- **File attachments** (images, PDFs, documents)
+- **Emoji picker** with search
+- **Dark/Light mode** toggle
+- **Responsive mobile-friendly design**
+- **Online/offline status** with animated green dot
+- **Last seen timestamps**
+- **Unread message count badges**
+- **User profiles** with avatar upload
+- **In-memory channel layer for easy testing** (no Redis required)
 
 ## Tech Stack
 
 ### Backend
 - **Django** - Web framework
-- **Django REST Framework** - API
-- **Django Channels** - WebSockets
-- **PostgreSQL** - Database
-- **Redis** - Channel layer
-- **SimpleJWT** - Authentication
+- **Django REST Framework** - RESTful API
+- **Django Channels** - WebSocket communication
+- **SQLite (testing)/PostgreSQL (production)** - Database
+- **In-memory (testing)/Redis (production)** - Channel layer
+- **Django REST Framework SimpleJWT** - JWT authentication
 
 ### Frontend
 - **React** - UI library
-- **Vite** - Build tool
-- **Tailwind CSS** - Styling
-- **React Router** - Routing
+- **Vite** - Fast build tool
+- **Tailwind CSS** - Utility-first styling
+- **React Router** - Client-side routing
 - **Axios** - HTTP client
-- **Lucide React** - Icons
-- **Emoji Picker React** - Emojis
+- **Lucide React** - Beautiful icons
+- **Emoji Picker React** - Modern emoji picker
 
 ## Project Structure
 
@@ -41,16 +45,16 @@ A full-stack real-time chat application built with React, Django, Django Channel
 chatting/
 ├── backend/
 │   ├── config/         # Django project settings
-│   ├── chat/           # Chat app (models, views, consumers, etc.)
+│   ├── chat/           # Chat app (models, views, serializers, consumers, etc.)
 │   ├── manage.py
 │   ├── requirements.txt
-│   ├── .env
-│   └── .env.example
+│   ├── .env.example
+│   └── media/          # Uploaded files (ignored by git)
 ├── frontend/
 │   ├── src/
-│   │   ├── components/ # React components
-│   │   ├── pages/      # Page components
-│   │   ├── contexts/   # React contexts
+│   │   ├── components/ # Reusable React components
+│   │   ├── pages/      # Page components (Login, Register, Chat, Profile)
+│   │   ├── contexts/   # React contexts (Auth, Chat, Theme)
 │   │   ├── services/   # API and WebSocket services
 │   │   ├── App.jsx
 │   │   └── main.jsx
@@ -64,14 +68,11 @@ chatting/
 ## Setup Instructions
 
 ### Prerequisites
-
 - Python 3.10+
 - Node.js 18+
-- PostgreSQL
-- Redis
+- (Optional: PostgreSQL and Redis for production)
 
 ### Backend Setup
-
 1. **Navigate to the backend directory**
    ```bash
    cd backend
@@ -79,9 +80,9 @@ chatting/
 
 2. **Create and activate a virtual environment**
    - Windows:
-     ```bash
+     ```powershell
      python -m venv venv
-     venv\Scripts\activate
+     .\venv\Scripts\Activate.ps1
      ```
    - Linux/macOS:
      ```bash
@@ -95,46 +96,27 @@ chatting/
    ```
 
 4. **Set up environment variables**
-   Copy `.env.example` to `.env` and fill in your details:
+   Copy `.env.example` to `.env`:
    ```bash
    cp .env.example .env
    ```
-   Edit `.env`:
-   ```
-   SECRET_KEY=your-secret-key-here
-   DEBUG=True
-   ALLOWED_HOSTS=localhost,127.0.0.1
-   DATABASE_NAME=chat_app_db
-   DATABASE_USER=your-postgres-user
-   DATABASE_PASSWORD=your-postgres-password
-   DATABASE_HOST=localhost
-   DATABASE_PORT=5432
-   REDIS_URL=redis://localhost:6379/0
-   CORS_ALLOWED_ORIGINS=http://localhost:5173
-   ```
 
-5. **Create PostgreSQL database**
-   ```sql
-   CREATE DATABASE chat_app_db;
-   ```
-
-6. **Run migrations**
+5. **Run database migrations**
    ```bash
    python manage.py migrate
    ```
 
-7. **Create a superuser (optional)**
+6. **Create a superuser (optional)**
    ```bash
    python manage.py createsuperuser
    ```
 
-8. **Start the backend server**
+7. **Start the backend server**
    ```bash
    python manage.py runserver
    ```
 
 ### Frontend Setup
-
 1. **Navigate to the frontend directory**
    ```bash
    cd frontend
@@ -151,38 +133,43 @@ chatting/
    cp .env.example .env
    ```
 
-4. **Start the development server**
+4. **Start the frontend development server**
    ```bash
    npm run dev
    ```
 
-The app should now be running at:
+### Running the App
 - Frontend: http://localhost:5173
 - Backend API: http://localhost:8000/api
+- Admin Panel: http://localhost:8000/admin (if you created a superuser)
 
 ## API Endpoints
 
 ### Authentication
-- `POST /api/token/` - Obtain JWT tokens
-- `POST /api/token/refresh/` - Refresh access token
+- `POST /api/token/` - Obtain JWT access and refresh tokens
+- `POST /api/token/refresh/` - Refresh access token using refresh token
 
 ### Users
 - `POST /api/users/` - Register a new user
 - `GET /api/users/` - List all users (requires auth)
-- `GET /api/users/{id}/` - Get user details (requires auth)
+- `GET /api/users/{id}/` - Get user details by ID (requires auth)
+- `GET /api/users/me/` - Get current authenticated user (requires auth)
+
+### User Profiles
+- `GET /api/profiles/me/` - Get current user's profile (requires auth)
+- `PATCH /api/profiles/me/` - Update current user's profile (requires auth)
 
 ### Chat Rooms
-- `GET /api/rooms/` - List user's chat rooms (requires auth)
+- `GET /api/rooms/` - List all rooms the user is a participant of (requires auth)
 - `POST /api/rooms/` - Create a new chat room (requires auth)
 - `GET /api/rooms/{id}/` - Get room details (requires auth)
 
 ### Messages
-- `GET /api/messages/` - List messages (requires auth, filter with `?room_id=`)
-- `POST /api/messages/` - Send a message (requires auth)
-- `POST /api/messages/{id}/mark_read/` - Mark message as read (requires auth)
+- `GET /api/messages/` - List messages, filter using `?room_id=` (requires auth)
+- `POST /api/messages/` - Send a message (supports file attachments) (requires auth)
+- `POST /api/messages/{id}/mark_read/` - Mark a message as read (requires auth)
 
 ## WebSocket Protocol
-
 Connect to: `ws://localhost:8000/ws/chat/{room_id}/`
 
 ### Message Types
@@ -190,17 +177,20 @@ Connect to: `ws://localhost:8000/ws/chat/{room_id}/`
    ```json
    {
      "type": "message",
-     "sender_id": 1,
-     "content": "Hello!",
-     "message_id": 123
+     "message": {
+       "id": 123,
+       "sender": {"id":1,"username":"john"},
+       "content":"Hello!",
+       "timestamp":"2026-05-30T00:00:00Z"
+     }
    }
    ```
 
-2. **Typing**
+2. **Typing Indicator**
    ```json
    {
      "type": "typing",
-     "user": {"id": 1, "username": "john"},
+     "user": {"id":1,"username":"john"},
      "is_typing": true
    }
    ```
@@ -210,39 +200,58 @@ Connect to: `ws://localhost:8000/ws/chat/{room_id}/`
    {
      "type": "read",
      "message_id": 123,
-     "user": {"id": 1, "username": "john"}
+     "user": {"id":1,"username":"john"}
    }
    ```
 
-## Deployment
+4. **User Status Update**
+   ```json
+   {
+     "type": "user_status",
+     "user_id":1,
+     "online": true,
+     "last_seen": "2026-05-30T00:00:00Z"
+   }
+   ```
 
-### Frontend (Vercel)
-1. Push your code to GitHub
-2. Connect your repo to Vercel
-3. Set environment variables: `VITE_API_URL`, `VITE_WS_URL`
-4. Deploy!
+## Deployment Guide
 
-### Backend (Render)
-1. Push your code to GitHub
-2. Create a new Web Service on Render
-3. Set environment variables
-4. Connect to PostgreSQL and Redis on Render
-5. Deploy!
+### Frontend Deployment (Vercel)
+1. **Push your code to GitHub/GitLab/Bitbucket**
+2. **Go to Vercel Dashboard** and click "New Project"
+3. **Connect your repository** and import your project
+4. **Set Environment Variables in Vercel**
+   - `VITE_API_URL` - Your production backend API URL (e.g., `https://your-chat-backend.onrender.com/api`)
+   - `VITE_WS_URL` - Your production WebSocket URL (e.g., `wss://your-chat-backend.onrender.com`)
+5. **Deploy**! Vercel will automatically deploy your frontend on every push
+
+### Backend Deployment (Render)
+1. **Push your code to GitHub**
+2. **Sign in to Render** and click "New Web Service"
+3. **Connect your repository** and set:
+   - Build command: `pip install -r requirements.txt && python manage.py migrate`
+   - Start command: `gunicorn config.asgi:application -k uvicorn.workers.UvicornWorker` (or `daphne config.asgi:application`)
+   - Runtime: Python 3.10+
+4. **Add Environment Variables**
+   - `SECRET_KEY` - Generate a secure secret key!
+   - `DEBUG` - `False`
+   - `ALLOWED_HOSTS` - Your Render domain (e.g., `your-chat-backend.onrender.com`)
+   - `CORS_ALLOWED_ORIGINS` - Your frontend domain (e.g., `https://your-chat-app.vercel.app`)
+   - Add PostgreSQL and Redis via Render's Marketplace
+5. **Add a .gitignore** (we already have one)
+6. **Deploy**!
 
 ## Future Improvements
-
 - [ ] Message editing and deletion
 - [ ] Voice and video calls
-- [ ] Message search
-- [ ] User profiles with avatars
+- [ ] Chat search
 - [ ] Push notifications
 - [ ] Message reactions
 - [ ] End-to-end encryption
-- [ ] Chat backups
-- [ ] Channel/community features
+- [ ] Chat backups/export
 - [ ] Custom themes
+- [ ] Channel/community features
 
 ## License
-
 MIT
 

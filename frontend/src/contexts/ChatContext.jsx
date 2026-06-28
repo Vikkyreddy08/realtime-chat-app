@@ -26,6 +26,13 @@ export const ChatProvider = ({ children }) => {
     }
   }, [user])
 
+  // Also fetch users when a new current room is selected
+  useEffect(() => {
+    if (user && currentRoom) {
+      fetchUsers()
+    }
+  }, [user, currentRoom])
+
   useEffect(() => {
     if (currentRoom) {
       fetchMessages(currentRoom.id)
@@ -57,10 +64,12 @@ export const ChatProvider = ({ children }) => {
       ws.on('read', (data) => {
         setMessages(prev => prev.map(m => {
           if (m.id === data.message_id) {
+            // Make sure user isn't already in read_by
+            const alreadyRead = m.read_by.some(u => u.id === data.user.id)
             return {
               ...m,
-              read_by: [...(m.read_by || []), data.user],
-              is_read: user && data.user.id === user.id ? true : m.is_read
+              read_by: alreadyRead ? m.read_by : [...(m.read_by || []), data.user],
+              is_read: m.is_read || (user && data.user.id === user.id)
             }
           }
           return m
@@ -68,11 +77,14 @@ export const ChatProvider = ({ children }) => {
       })
 
       ws.on('user_status', (data) => {
-        setUsers(prev => prev.map(u => u.id === data.user_id ? { ...u, online: data.online } : u))
+        console.log('Received user status update:', data)
+        setUsers(prev => prev.map(u => u.id === data.user_id ? { ...u, online: data.online, last_seen: data.last_seen || u.last_seen } : u))
         if (currentRoom && currentRoom.participants) {
           setCurrentRoom(prev => ({
             ...prev,
-            participants: prev.participants.map(p => p.id === data.user_id ? { ...p, online: data.online } : p)
+            participants: prev.participants.map(p => 
+              p.id === data.user_id ? { ...p, online: data.online, last_seen: data.last_seen || p.last_seen } : p
+            )
           }))
         }
       })
@@ -115,6 +127,7 @@ export const ChatProvider = ({ children }) => {
   const fetchUsers = async () => {
     try {
       const res = await api.get('/users/')
+      console.log('Fetched users:', res.data)
       setUsers(res.data)
     } catch (err) {
       console.error('Failed to fetch users:', err)
@@ -125,6 +138,14 @@ export const ChatProvider = ({ children }) => {
     try {
       const res = await api.get(`/messages/?room_id=${roomId}`)
       setMessages(res.data)
+      
+      // Mark all unread messages as read immediately
+      if (user) {
+        const unreadMessages = res.data.filter(msg => 
+          msg.sender.id !== user.id && !msg.read_by.some(u => u.id === user.id)
+        )
+        unreadMessages.forEach(msg => markRead(msg.id, user))
+      }
     } catch (err) {
       console.error('Failed to fetch messages:', err)
     }

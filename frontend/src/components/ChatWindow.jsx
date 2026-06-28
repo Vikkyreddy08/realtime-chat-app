@@ -207,11 +207,22 @@ const ChatWindow = () => {
                 )}
                 <div className="text-xs flex items-center gap-1 justify-end opacity-75">
                   {formatTime(msg.timestamp)}
-                  {isCurrentUser && msg.is_read ? (
-                    <CheckCheck size={14} className="text-blue-200" />
-                  ) : isCurrentUser ? (
-                    <Check size={14} />
-                  ) : null}
+                  {isCurrentUser && (
+                    <span className="flex items-center">
+                      {(() => {
+                        // Check if other participants have read the message
+                        const otherParticipantsInRoom = currentRoom.participants.filter(p => p.id !== user.id);
+                        const hasOtherRead = otherParticipantsInRoom.some(p => 
+                          msg.read_by.some(u => u.id === p.id)
+                        );
+                        return hasOtherRead ? (
+                          <CheckCheck size={14} className="text-blue-400" />
+                        ) : (
+                          <Check size={14} className="text-gray-400" />
+                        );
+                      })()}
+                    </span>
+                  )}
                 </div>
               </div>
             </div>

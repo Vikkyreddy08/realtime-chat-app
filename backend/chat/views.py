@@ -168,9 +168,23 @@ class UserProfileViewSet(viewsets.ModelViewSet):
     queryset = UserProfile.objects.all()
     serializer_class = UserProfileSerializer
     permission_classes = [permissions.IsAuthenticated]
+    http_method_names = ['get', 'patch', 'put']
 
     def get_queryset(self):
         return self.queryset.filter(user=self.request.user)
+
+    def get_object(self):
+        return self.request.user.profile
+
+    @action(detail=False, methods=['get', 'patch'])
+    def me(self, request):
+        profile = self.get_object()
+        if request.method == 'PATCH':
+            serializer = self.get_serializer(profile, data=request.data, partial=True)
+            serializer.is_valid(raise_exception=True)
+            serializer.save()
+        serializer = self.get_serializer(profile)
+        return Response(serializer.data)
 
 
 class CustomTokenObtainPairView(TokenObtainPairView):

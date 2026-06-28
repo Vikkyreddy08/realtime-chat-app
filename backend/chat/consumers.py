@@ -13,6 +13,7 @@ User = get_user_model()
 
 class ChatConsumer(AsyncWebsocketConsumer):
     async def connect(self):
+        print(f"[WebSocket] User {self.scope['user']} connecting to room {self.scope['url_route']['kwargs']['room_id']}")
         self.room_id = self.scope['url_route']['kwargs']['room_id']
         self.room_group_name = f'chat_{self.room_id}'
         
@@ -26,8 +27,10 @@ class ChatConsumer(AsyncWebsocketConsumer):
             self.channel_name
         )
         await self.accept()
+        print(f"[WebSocket] User {self.scope['user']} connected to room {self.room_id}")
 
     async def disconnect(self, close_code):
+        print(f"[WebSocket] User {self.scope['user']} disconnecting from room {self.room_id}")
         # Set user offline
         if self.scope['user'].is_authenticated:
             await self.set_user_online(self.scope['user'].id, False)
@@ -37,6 +40,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
             self.room_group_name,
             self.channel_name
         )
+        print(f"[WebSocket] User {self.scope['user']} disconnected")
 
     async def receive(self, text_data):
         data = json.loads(text_data)
@@ -90,10 +94,22 @@ class ChatConsumer(AsyncWebsocketConsumer):
         await self.send(text_data=json.dumps({
             'type': 'user_status',
             'user_id': event['user_id'],
-            'online': event['online']
+            'online': event['online'],
+            'last_seen': event.get('last_seen')
         }))
 
     async def broadcast_user_status(self, user_id, online):
+        # Get last_seen from user profile
+        from django.contrib.auth.models import User
+        from .models import UserProfile
+        last_seen = None
+        try:
+            profile = await database_sync_to_async(UserProfile.objects.get)(user_id=user_id)
+            if profile.last_seen:
+                last_seen = profile.last_seen.isoformat()
+        except UserProfile.DoesNotExist:
+            pass
+
         # Get all rooms the user is in and broadcast to all those rooms
         rooms = await self.get_user_rooms(user_id)
         for room in rooms:
@@ -102,7 +118,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 {
                     'type': 'user_status_change',
                     'user_id': user_id,
-                    'online': online
+                    'online': online,
+                    'last_seen': last_seen
                 }
             )
 

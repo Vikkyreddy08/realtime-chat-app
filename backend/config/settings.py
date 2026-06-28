@@ -60,40 +60,49 @@ TEMPLATES = [
 WSGI_APPLICATION = 'config.wsgi.application'
 ASGI_APPLICATION = 'config.asgi.application'
 
-# For easy testing without PostgreSQL/Redis!
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
-    }
-}
+import urllib.parse
 
-CHANNEL_LAYERS = {
-    "default": {
-        "BACKEND": "channels.layers.InMemoryChannelLayer"
+# Database configuration
+if os.getenv('DATABASE_URL'):
+    # Parse Aiven PostgreSQL URL
+    url = urllib.parse.urlparse(os.getenv('DATABASE_URL'))
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': url.path[1:],
+            'USER': url.username,
+            'PASSWORD': url.password,
+            'HOST': url.hostname,
+            'PORT': url.port,
+        }
     }
-}
+else:
+    # Default to SQLite for development
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+        }
+    }
 
-# Uncomment below for production with PostgreSQL & Redis:
-# DATABASES = {
-#     'default': {
-#         'ENGINE': 'django.db.backends.postgresql',
-#         'NAME': os.getenv('DATABASE_NAME'),
-#         'USER': os.getenv('DATABASE_USER'),
-#         'PASSWORD': os.getenv('DATABASE_PASSWORD'),
-#         'HOST': os.getenv('DATABASE_HOST'),
-#         'PORT': os.getenv('DATABASE_PORT'),
-#     }
-# }
-#
-# CHANNEL_LAYERS = {
-#     'default': {
-#         'BACKEND': 'channels_redis.core.RedisChannelLayer',
-#         'CONFIG': {
-#             'hosts': [os.getenv('REDIS_URL')],
-#         },
-#     },
-# }
+# Channel layer configuration
+if os.getenv('REDIS_URL'):
+    # Use Redis (Aiven) for production
+    CHANNEL_LAYERS = {
+        'default': {
+            'BACKEND': 'channels_redis.core.RedisChannelLayer',
+            'CONFIG': {
+                'hosts': [os.getenv('REDIS_URL')],
+            },
+        },
+    }
+else:
+    # Default to in-memory for development
+    CHANNEL_LAYERS = {
+        "default": {
+            "BACKEND": "channels.layers.InMemoryChannelLayer"
+        }
+    }
 
 AUTH_PASSWORD_VALIDATORS = [
     {
